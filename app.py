@@ -34,6 +34,9 @@ st.markdown("""
 @st.cache_data
 def load_data(ticker, start, end):
     data = yf.download(ticker, start=start, end=end)
+    # FIX: Flatten MultiIndex columns if they exist (Common yfinance issue)
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.droplevel(1)
     data.reset_index(inplace=True)
     return data
 
@@ -80,21 +83,31 @@ if ticker:
             st.warning("No data found. Please check the ticker symbol.")
             st.stop()
             
-       # --- Corrected Data Extraction ---
-        # We use float() to ensure we have a raw number, not a pandas Series
-        current_price = float(data['Close'].iloc[-1])
-        prev_price = float(data['Close'].iloc[-2])
-        
+        # --- ROBUST DATA EXTRACTION (Fixes Format Error) ---
+        # We use .item() or float() to ensure we get a single number, not a list/Series.
+        try:
+            current_price = float(data['Close'].iloc[-1])
+            prev_price = float(data['Close'].iloc[-2])
+            high_24h = float(data['High'].iloc[-1])
+            low_24h = float(data['Low'].iloc[-1])
+            volume = int(data['Volume'].iloc[-1])
+        except TypeError:
+            # Fallback if data is still in a weird format
+            current_price = float(data['Close'].iloc[-1].iloc[0])
+            prev_price = float(data['Close'].iloc[-2].iloc[0])
+            high_24h = float(data['High'].iloc[-1].iloc[0])
+            low_24h = float(data['Low'].iloc[-1].iloc[0])
+            volume = int(data['Volume'].iloc[-1].iloc[0])
+
         delta = current_price - prev_price
         delta_percent = (delta / prev_price) * 100
         
         # --- Dashboard Metrics ---
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Current Price", f"${current_price:.2f}", f"{delta:.2f} ({delta_percent:.2f}%)")
-        col2.metric("High (24h)", f"${float(data['High'].iloc[-1]):.2f}")
-        col3.metric("Low (24h)", f"${float(data['Low'].iloc[-1]):.2f}")
-        col4.metric("Volume", f"{int(data['Volume'].iloc[-1]):,}")
-        col4.metric("Volume", f"{data['Volume'].iloc[-1]:,}")
+        col2.metric("High (24h)", f"${high_24h:.2f}")
+        col3.metric("Low (24h)", f"${low_24h:.2f}")
+        col4.metric("Volume", f"{volume:,}")
 
         # --- Tabs for Content ---
         tab1, tab2, tab3 = st.tabs(["📊 Technical Charts", "🔮 AI Prediction", "💾 Raw Data"])
@@ -192,6 +205,9 @@ if ticker:
             )
 
     except Exception as e:
+        st.error(f"Error fetching data: {e}")
+else:
+    st.info("Enter a stock ticker in the sidebar to begin.")
         st.error(f"Error fetching data: {e}")
 else:
     st.info("Enter a stock ticker in the sidebar to begin.")
