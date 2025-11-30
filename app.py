@@ -204,10 +204,10 @@ if ticker:
                 mime='text/csv',
             )
 
+   # ... (Code for tab3 ends here) ...
+            )
+
     except Exception as e:
-        st.error(f"Error fetching data: {e}")
-else:
-    st.info("Enter a stock ticker in the sidebar to begin.")
         st.error(f"Error fetching data: {e}")
 else:
     st.info("Enter a stock ticker in the sidebar to begin.")
