@@ -191,7 +191,7 @@ if ticker:
                     df_forecast = pd.DataFrame({"Date": future_dates, "Predicted Price": predictions})
                     st.dataframe(df_forecast)
 
-        with tab3:
+      with tab3:
             st.subheader("Raw Data Inspector")
             st.dataframe(data.sort_values(by='Date', ascending=False))
             
