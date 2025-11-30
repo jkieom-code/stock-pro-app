@@ -80,17 +80,20 @@ if ticker:
             st.warning("No data found. Please check the ticker symbol.")
             st.stop()
             
-        # Get Current Price & Delta
-        current_price = data['Close'].iloc[-1]
-        prev_price = data['Close'].iloc[-2]
+       # --- Corrected Data Extraction ---
+        # We use float() to ensure we have a raw number, not a pandas Series
+        current_price = float(data['Close'].iloc[-1])
+        prev_price = float(data['Close'].iloc[-2])
+        
         delta = current_price - prev_price
         delta_percent = (delta / prev_price) * 100
         
         # --- Dashboard Metrics ---
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Current Price", f"${current_price:.2f}", f"{delta:.2f} ({delta_percent:.2f}%)")
-        col2.metric("High (24h)", f"${data['High'].iloc[-1]:.2f}")
-        col3.metric("Low (24h)", f"${data['Low'].iloc[-1]:.2f}")
+        col2.metric("High (24h)", f"${float(data['High'].iloc[-1]):.2f}")
+        col3.metric("Low (24h)", f"${float(data['Low'].iloc[-1]):.2f}")
+        col4.metric("Volume", f"{int(data['Volume'].iloc[-1]):,}")
         col4.metric("Volume", f"{data['Volume'].iloc[-1]:,}")
 
         # --- Tabs for Content ---
