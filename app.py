@@ -4,14 +4,13 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from datetime import date, timedelta
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 
 # --- Configuration ---
 st.set_page_config(
     page_title="StockPro: AI-Powered Analytics",
-    page_icon="hmC",
+    page_icon="📈",
     layout="wide"
 )
 
@@ -33,14 +32,18 @@ st.markdown("""
 # --- Helper Functions ---
 @st.cache_data
 def load_data(ticker, start, end):
+    """Loads historical stock data from yfinance."""
     data = yf.download(ticker, start=start, end=end)
-    # FIX: Flatten MultiIndex columns if they exist (Common yfinance issue)
+    
+    # FIX: Flatten MultiIndex columns if they exist (prevents 'Series.format' error)
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.droplevel(1)
+        
     data.reset_index(inplace=True)
     return data
 
 def calculate_rsi(data, window=14):
+    """Calculates the Relative Strength Index (RSI)."""
     delta = data['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
@@ -48,8 +51,10 @@ def calculate_rsi(data, window=14):
     return 100 - (100 / (1 + rs))
 
 def train_model(data):
+    """Trains a Random Forest Regressor for price prediction."""
     # Prepare data for ML (Predicting 'Close' based on Date integer)
     df_ml = data[['Date', 'Close']].copy()
+    # Convert Date to a numerical ordinal value for the model
     df_ml['Date_Ordinal'] = pd.to_datetime(df_ml['Date']).map(pd.Timestamp.toordinal)
     
     X = df_ml[['Date_Ordinal']]
@@ -83,21 +88,14 @@ if ticker:
             st.warning("No data found. Please check the ticker symbol.")
             st.stop()
             
-        # --- ROBUST DATA EXTRACTION (Fixes Format Error) ---
-        # We use .item() or float() to ensure we get a single number, not a list/Series.
-        try:
-            current_price = float(data['Close'].iloc[-1])
-            prev_price = float(data['Close'].iloc[-2])
-            high_24h = float(data['High'].iloc[-1])
-            low_24h = float(data['Low'].iloc[-1])
-            volume = int(data['Volume'].iloc[-1])
-        except TypeError:
-            # Fallback if data is still in a weird format
-            current_price = float(data['Close'].iloc[-1].iloc[0])
-            prev_price = float(data['Close'].iloc[-2].iloc[0])
-            high_24h = float(data['High'].iloc[-1].iloc[0])
-            low_24h = float(data['Low'].iloc[-1].iloc[0])
-            volume = int(data['Volume'].iloc[-1].iloc[0])
+        # --- ROBUST DATA EXTRACTION (Ensures format compatibility) ---
+        # Use .iloc[-1] to get the last row, and float() to extract the number
+        # from the pandas Series/DataFrame structure.
+        current_price = float(data['Close'].iloc[-1])
+        prev_price = float(data['Close'].iloc[-2])
+        high_24h = float(data['High'].iloc[-1])
+        low_24h = float(data['Low'].iloc[-1])
+        volume = int(data['Volume'].iloc[-1])
 
         delta = current_price - prev_price
         delta_percent = (delta / prev_price) * 100
@@ -191,7 +189,7 @@ if ticker:
                     df_forecast = pd.DataFrame({"Date": future_dates, "Predicted Price": predictions})
                     st.dataframe(df_forecast)
 
-      with tab3:
+        with tab3:
             st.subheader("Raw Data Inspector")
             st.dataframe(data.sort_values(by='Date', ascending=False))
             
@@ -204,10 +202,9 @@ if ticker:
                 mime='text/csv',
             )
 
-   # ... (Code for tab3 ends here) ...
-            )
-
     except Exception as e:
+        # This catches general errors like bad ticker symbols or network issues
         st.error(f"Error fetching data: {e}")
 else:
+    # Initial message when no ticker is entered
     st.info("Enter a stock ticker in the sidebar to begin.")
